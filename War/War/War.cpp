@@ -12,10 +12,10 @@
 
 using namespace std;
 
-vector<int> d1; // player's draw piles
-vector<int> d2;
-vector<int> r1; // player's rubbish piles
-vector<int> r2;
+struct Hand {
+	vector<int> dp;	// player's draw piles
+	vector<int> rp;	// player's rubbish piles
+};
 
 // prints the contents of a vector to the console
 void print(const vector<int>& v) {
@@ -33,6 +33,7 @@ void print(const vector<int>& v) {
 		}
 	}
 }
+
 // shuffles elements of a vector with equal probability
 //  requires <random> and <algorithm> to run
 vector<int> shuffle(vector<int> r) {
@@ -41,9 +42,10 @@ vector<int> shuffle(vector<int> r) {
 	shuffle(r.begin(), r.end(), g);
 	return r;
 }
+
 // sets up a standard deck of 52 cards (11 == jack, etc.), shuffles it, and divides
 //	it between two hands
-void draw_initializer(vector<int>& d1, vector<int>& d2) {
+void draw_initializer(Hand& h1, Hand& h2) {
 	vector<int> deck(52);
 	for (int i = 0; i < 13; ++i) {		// 13 kinds of cards
 		for (int j = 0; j < 4; j++) {	// 4 of each card
@@ -53,111 +55,100 @@ void draw_initializer(vector<int>& d1, vector<int>& d2) {
 	deck = shuffle(deck);
 	// split the deck between the two draw piles
 	for (int i = 0; i < 26; ++i) {
-		d1.push_back(deck[i]);
-		d2.push_back(deck[i + 26]);
+		h1.dp.push_back(deck[i]);
+		h2.dp.push_back(deck[i + 26]);
 	}
 }
+
 // compares the leading elements of two vectors until a vector is empty
-void play_war(vector<int>& d1, vector<int>& d2) {
+void play_war(Hand& h1, Hand& h2) {
 	// figure out which deck is smallest (determines how long to compare)
 	int small_d = 0;
-	int size1 = d1.size();
-	int size2 = d2.size();
+	int size1 = h1.dp.size();
+	int size2 = h2.dp.size();
 	(size1 <= size2) ? small_d = size1 : small_d = size2;
-	// r1 and r2 are the rubbish piles. whoever has the stronger card gets
+	// h1.rp and h2.rp are the rubbish piles. whoever has the stronger card gets
 	//  both cards put into their rubbish pile.
 	for (int i = 0; i < small_d; ++i) {
-		if (d1[0] > d2[0]) {
-			r1.push_back(d1[0]);
-			r1.push_back(d2[0]);
+		if (h1.dp[0] > h2.dp[0]) {
+			h1.rp.push_back(h1.dp[0]);
+			h1.rp.push_back(h2.dp[0]);
 		}
-		else if (d1[0] < d2[0]) {
-			r2.push_back(d1[0]);
-			r2.push_back(d2[0]);
+		else if (h1.dp[0] < h2.dp[0]) {
+			h2.rp.push_back(h1.dp[0]);
+			h2.rp.push_back(h2.dp[0]);
 		}
-		else if (d1[0] == d2[0]) {
-			int length1 = d1.size();
-			int length2 = d2.size();
-			cout << d1.size() << endl << d2.size() << endl;
-			cout << length1 << endl << length2 << endl;
+		else if (h1.dp[0] == h2.dp[0]) {
+			int length1 = h1.dp.size();
+			int length2 = h2.dp.size();
 			// see if enough cards to burn three before comparing 4th card
 			if (length1 > 4 && length2 > 4) {
 				// if so, we will be removing four cards from each pile, so it will
 				//  take 3 fewer comparisons to exhaust the smaller draw pile
 				i += 3;
-				if (d1[3] > d2[3]) {
-					cout << "a1" << endl;
+				if (h1.dp[3] > h2.dp[3]) {
 					for (int i = 0; i < 4; ++i) {
-						r1.push_back(d1[i]);
-						r1.push_back(d2[i]);
+						h1.rp.push_back(h1.dp[i]);
+						h1.rp.push_back(h2.dp[i]);
 					}
-					cout << "a2" << endl;
 					for (int i = 0; i < 3; ++i) {
-						d1.erase(d1.begin());
-						d2.erase(d2.begin());
+						h1.dp.erase(h1.dp.begin());
+						h2.dp.erase(h2.dp.begin());
 					}
 				}
-				else if (d1[3] < d2[3]) {
-					cout << "b1" << endl;
+				else if (h1.dp[3] < h2.dp[3]) {
 					for (int i = 0; i < 4; ++i) {
-						r2.push_back(d1[i]);
-						r2.push_back(d2[i]);
+						h2.rp.push_back(h1.dp[i]);
+						h2.rp.push_back(h2.dp[i]);
 					}
-					cout << "b2" << endl;
 					for (int i = 0; i < 3; ++i) {
-						d1.erase(d1.begin());
-						d2.erase(d2.begin());
+						h1.dp.erase(h1.dp.begin());
+						h2.dp.erase(h2.dp.begin());
 					}
 				}
 				// if the 4th card is also a tie, just give each player back their 4 cards
 				else {
-					cout << "c2" << endl;
 					for (int i = 0; i < 4; ++i) {
-						r1.push_back(d1[i]);
-						r2.push_back(d2[i]);
+						h1.rp.push_back(h1.dp[i]);
+						h2.rp.push_back(h2.dp[i]);
 					}
-					cout << "c2" << endl;
 					for (int i = 0; i < 3; ++i) {
-						d1.erase(d1.begin());
-						d2.erase(d2.begin());
+						h1.dp.erase(h1.dp.begin());
+						h2.dp.erase(h2.dp.begin());
 					}
 				}
 			}
 			// if there's not enough cards to burn 3 without shuffling a deck, just give the
 			//  players back the tie card
 			else {
-				cout << "d1" << endl;
-				r1.push_back(d1[0]);
-				r1.push_back(d2[0]);
+				h1.rp.push_back(h1.dp[0]);
+				h1.rp.push_back(h2.dp[0]);
 			}
 		}
-		//*/
 		else {
 			cerr << "Error comparing values. \n";
 		}
 		// at the end of this, the smaller deck should be the empty vector
-		cout << "e1" << endl;
-		d1.erase(d1.begin());
-		d2.erase(d2.begin());
+		h1.dp.erase(h1.dp.begin());
+		h2.dp.erase(h2.dp.begin());
 	}
 }
 // whichever deck is empty, shuffle its corresponding rubbish pile to refill,
 //	then clear the rubbish pile
-void reset_decks(vector<int>& d1, vector<int>& d2,
-	vector<int>& r1, vector<int>& r2) {
-	if (d1.size() != 0 && d2.size() != 0) {
+void reset_decks(Hand& h1, Hand& h2) {
+	if (h1.dp.size() != 0 && h2.dp.size() != 0) {
 		cerr << "Neither deck is empty.\n";
 	}
-	if (d1.size() == 0) {
-		d1 = shuffle(r1);
-		r1 = {};
+	if (h1.dp.size() == 0) {
+		h1.dp = shuffle(h1.rp);
+		h1.rp = {};
 	}
-	if (d2.size() == 0) {
-		d2 = shuffle(r2);
-		r2 = {};
+	if (h2.dp.size() == 0) {
+		h2.dp = shuffle(h2.rp);
+		h2.rp = {};
 	}
 	// make sure there are still 52 cards;
-	int total_cards = d1.size() + r1.size() + d2.size() + r2.size();
+	int total_cards = h1.dp.size() + h1.rp.size() + h2.dp.size() + h2.rp.size();
 	if (total_cards != 52) {
 		cerr << "Missing cards!\n";
 	}
@@ -166,19 +157,21 @@ void reset_decks(vector<int>& d1, vector<int>& d2,
 int main() {
 	vector<int> round_length;		// keep track of how many shuffles it takes to win
 	int j = 0;
-	while (j < 100) {				// play 100 games to gather statistics
-		draw_initializer(d1, d2);	// 26 cards each from a shuffled 52 card deck
+	while (j < 100) {							// play 100 games to gather statistics
+		Hand h1;
+		Hand h2;
+		draw_initializer(h1, h2);	// 26 cards each from a shuffled 52 card deck
 		string winner;
 		int i = 0;
 		while (winner == "") {
-			play_war(d1, d2);		// compare leading card from both decks, winner 
+			play_war(h1, h2);		// compare leading card from both decks, winner 
 									//  gets cards added to their 'r' pile
 			// if someone has absolutely no cards left, the other player wins
-			if (d1.size() == 0 && r1.size() == 0) {
+			if (h1.dp.size() == 0 && h1.rp.size() == 0) {
 				winner = "Player 2";
 				round_length.push_back(i);
 			}
-			if (d2.size() == 0 && r2.size() == 0) {
+			if (h2.dp.size() == 0 && h2.rp.size() == 0) {
 				winner = "Player 1";
 				round_length.push_back(i);
 			}
@@ -188,14 +181,14 @@ int main() {
 				round_length.push_back(400);
 			}
 			// if no winner, reset the deck that is empty
-			reset_decks(d1, d2, r1, r2);
+			reset_decks(h1, h2);
 			++i;
 		}
 		// reset the draw and rubbish piles for a new game
-		d1 = {};
-		r1 = {};
-		d2 = {};
-		r2 = {};
+		h1.dp = {};
+		h1.rp = {};
+		h2.dp = {};
+		h2.rp = {};
 		++j;
 	}
 	print(round_length);
@@ -203,35 +196,37 @@ int main() {
 }
 // this is similar to main() above, but it prints the deck contents
 //	occasionally so the user can see the program works currectly
+/*
 int Notmain() {
-	draw_initializer(d1, d2);
+	draw_initializer(h1, h2);
 	string winner;
 	int i = 0;
 	while (winner == "") {
-		play_war(d1, d2);
-		if (d1.size() == 0 && r1.size() == 0) {
+		play_war(h1.dp, h2.dp);
+		if (h1.dp.size() == 0 && h1.rp.size() == 0) {
 			cout << "required rounds: " << i << endl;
 			winner = "Player 2";
 		}
-		if (d2.size() == 0 && r2.size() == 0) {
+		if (h2.dp.size() == 0 && h2.rp.size() == 0) {
 			cout << "required rounds: " << i << endl;
 			winner = "Player 1";
 		}
 		if (i % 25 == 0) {
 			cout << i << " hands played\n";
 			cout << "deck 1:\n";
-			print(d1);
-			print(r1);
+			print(h1.dp);
+			print(h1.rp);
 			cout << "deck 2:\n";
-			print(d2);
-			print(r2);
+			print(h2.dp);
+			print(h2.rp);
 		}
 		if (i > 401) {
 			winner = "no one";
 		}
-		reset_decks(d1, d2, r1, r2);
+		reset_decks(h1.dp, h2.dp, h1.rp, h2.rp);
 		++i;
 	}
 	cout << winner << " wins!";
 	return 0;
 }
+*/
