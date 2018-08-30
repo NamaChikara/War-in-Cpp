@@ -76,41 +76,67 @@ void play_war(vector<int>& d1, vector<int>& d2) {
 			r2.push_back(d2[0]);
 		}
 		else if (d1[0] == d2[0]) {
-			r1.push_back(d1[0]);
-			r2.push_back(d2[0]);
-		}
-		/*
-		else if (d1[0] == d2[0]) {
 			int length1 = d1.size();
 			int length2 = d2.size();
+			cout << d1.size() << endl << d2.size() << endl;
+			cout << length1 << endl << length2 << endl;
+			// see if enough cards to burn three before comparing 4th card
 			if (length1 > 4 && length2 > 4) {
+				// if so, we will be removing four cards from each pile, so it will
+				//  take 3 fewer comparisons to exhaust the smaller draw pile
+				i += 3;
 				if (d1[3] > d2[3]) {
+					cout << "a1" << endl;
 					for (int i = 0; i < 4; ++i) {
 						r1.push_back(d1[i]);
 						r1.push_back(d2[i]);
 					}
+					cout << "a2" << endl;
+					for (int i = 0; i < 3; ++i) {
+						d1.erase(d1.begin());
+						d2.erase(d2.begin());
+					}
 				}
-				else {
+				else if (d1[3] < d2[3]) {
+					cout << "b1" << endl;
 					for (int i = 0; i < 4; ++i) {
 						r2.push_back(d1[i]);
 						r2.push_back(d2[i]);
 					}
+					cout << "b2" << endl;
+					for (int i = 0; i < 3; ++i) {
+						d1.erase(d1.begin());
+						d2.erase(d2.begin());
+					}
 				}
-				for (int i = 0; i < 3; ++i) {
-					d1.erase(d1.begin());
-					d2.erase(d2.begin());
+				// if the 4th card is also a tie, just give each player back their 4 cards
+				else {
+					cout << "c2" << endl;
+					for (int i = 0; i < 4; ++i) {
+						r1.push_back(d1[i]);
+						r2.push_back(d2[i]);
+					}
+					cout << "c2" << endl;
+					for (int i = 0; i < 3; ++i) {
+						d1.erase(d1.begin());
+						d2.erase(d2.begin());
+					}
 				}
 			}
+			// if there's not enough cards to burn 3 without shuffling a deck, just give the
+			//  players back the tie card
 			else {
+				cout << "d1" << endl;
 				r1.push_back(d1[0]);
 				r1.push_back(d2[0]);
 			}
 		}
-		*/
+		//*/
 		else {
 			cerr << "Error comparing values. \n";
 		}
 		// at the end of this, the smaller deck should be the empty vector
+		cout << "e1" << endl;
 		d1.erase(d1.begin());
 		d2.erase(d2.begin());
 	}
@@ -161,6 +187,7 @@ int main() {
 				winner = "no one";
 				round_length.push_back(400);
 			}
+			// if no winner, reset the deck that is empty
 			reset_decks(d1, d2, r1, r2);
 			++i;
 		}
