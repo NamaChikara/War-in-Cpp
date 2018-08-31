@@ -9,12 +9,20 @@
 #include <algorithm>
 #include <iterator>
 #include <string>
+#include <vector>
 
 using namespace std;
+
+const int burn = 3;	// how many cards to burn in case of tie
+vector<int> burn_pile;
+int tracker = 0;	// track how many deck resets it takes for a game to complete
 
 struct Hand {
 	vector<int> dp;	// player's draw piles
 	vector<int> rp;	// player's rubbish piles
+	int sum() {		
+		return dp.size() + rp.size();
+	}
 };
 
 // prints the contents of a vector to the console
@@ -60,129 +68,108 @@ void draw_initializer(Hand& h1, Hand& h2) {
 	}
 }
 
-// compares the leading elements of two vectors until a vector is empty
-void play_war(Hand& h1, Hand& h2) {
-	// figure out which deck is smallest (determines how long to compare)
-	int small_d = 0;
-	int size1 = h1.dp.size();
-	int size2 = h2.dp.size();
-	(size1 <= size2) ? small_d = size1 : small_d = size2;
-	// h1.rp and h2.rp are the rubbish piles. whoever has the stronger card gets
-	//  both cards put into their rubbish pile.
-	for (int i = 0; i < small_d; ++i) {
+//  reset an individual deck
+void reset_deck(Hand &h) {
+	++tracker;
+	h.rp = shuffle(h.rp);
+	while (h.rp.size() > 0) {
+		h.dp.push_back(h.rp[0]);
+		h.rp.erase(h.rp.begin());
+	}
+}
+// declare in advance
+void compare(Hand& h1, Hand& h2);
+
+// in case of a tie
+void tie(Hand &h1, Hand &h2) {
+	// if there aren't enough total cards to burn and then compare,
+	//  discard current tie
+	if (h1.sum() < burn + 2 || h2.sum() < burn + 2) {
+		h1.rp.push_back(h1.dp[0]);
+		h2.rp.push_back(h2.dp[0]);
+		h1.dp.erase(h1.dp.begin());
+		h2.dp.erase(h2.dp.begin());
+		return;
+	}
+	// make sure the draw pile has enough cards to burn
+	if (h1.dp.size() < burn + 2)
+		reset_deck(h1);
+	if (h2.dp.size() < burn + 2)
+		reset_deck(h2);
+	for (int i = 0; i < burn+1; ++i) {
+			burn_pile.push_back(h1.dp[0]);
+			burn_pile.push_back(h2.dp[0]);
+			h1.dp.erase(h1.dp.begin());
+			h2.dp.erase(h2.dp.begin());
+	}
+	compare(h1, h2);
+}
+
+
+/////////////////////////////////
+void compare(Hand &h1, Hand &h2) {
+	while (h1.dp.size() != 0 && h2.dp.size() != 0) {
 		if (h1.dp[0] > h2.dp[0]) {
 			h1.rp.push_back(h1.dp[0]);
 			h1.rp.push_back(h2.dp[0]);
+			h1.dp.erase(h1.dp.begin());
+			h2.dp.erase(h2.dp.begin());
+			// see if there was a burn pile to be won
+			if (burn_pile.size() != 0) {
+				for (int i = 0; i < burn_pile.size(); ++i) {
+					h1.rp.push_back(burn_pile[i]);
+				}
+				burn_pile = {};
+			}
 		}
 		else if (h1.dp[0] < h2.dp[0]) {
 			h2.rp.push_back(h1.dp[0]);
 			h2.rp.push_back(h2.dp[0]);
-		}
-		else if (h1.dp[0] == h2.dp[0]) {
-			int length1 = h1.dp.size();
-			int length2 = h2.dp.size();
-			// see if enough cards to burn three before comparing 4th card
-			if (length1 > 4 && length2 > 4) {
-				// if so, we will be removing four cards from each pile, so it will
-				//  take 3 fewer comparisons to exhaust the smaller draw pile
-				i += 3;
-				if (h1.dp[3] > h2.dp[3]) {
-					for (int i = 0; i < 4; ++i) {
-						h1.rp.push_back(h1.dp[i]);
-						h1.rp.push_back(h2.dp[i]);
-					}
-					for (int i = 0; i < 3; ++i) {
-						h1.dp.erase(h1.dp.begin());
-						h2.dp.erase(h2.dp.begin());
-					}
+			h1.dp.erase(h1.dp.begin());
+			h2.dp.erase(h2.dp.begin());
+			// see if there was a burn pile to be won
+			if (burn_pile.size() != 0) {
+				for (int i = 0; i < burn_pile.size(); ++i) {
+					h2.rp.push_back(burn_pile[i]);
 				}
-				else if (h1.dp[3] < h2.dp[3]) {
-					for (int i = 0; i < 4; ++i) {
-						h2.rp.push_back(h1.dp[i]);
-						h2.rp.push_back(h2.dp[i]);
-					}
-					for (int i = 0; i < 3; ++i) {
-						h1.dp.erase(h1.dp.begin());
-						h2.dp.erase(h2.dp.begin());
-					}
-				}
-				// if the 4th card is also a tie, just give each player back their 4 cards
-				else {
-					for (int i = 0; i < 4; ++i) {
-						h1.rp.push_back(h1.dp[i]);
-						h2.rp.push_back(h2.dp[i]);
-					}
-					for (int i = 0; i < 3; ++i) {
-						h1.dp.erase(h1.dp.begin());
-						h2.dp.erase(h2.dp.begin());
-					}
-				}
-			}
-			// if there's not enough cards to burn 3 without shuffling a deck, just give the
-			//  players back the tie card
-			else {
-				h1.rp.push_back(h1.dp[0]);
-				h1.rp.push_back(h2.dp[0]);
+				burn_pile = {};
 			}
 		}
 		else {
-			cerr << "Error comparing values. \n";
+			// burn 3 cards and then compare the next card
+			tie(h1, h2);
 		}
-		// at the end of this, the smaller deck should be the empty vector
-		h1.dp.erase(h1.dp.begin());
-		h2.dp.erase(h2.dp.begin());
 	}
-}
-// whichever deck is empty, shuffle its corresponding rubbish pile to refill,
-//	then clear the rubbish pile
-void reset_decks(Hand& h1, Hand& h2) {
-	if (h1.dp.size() != 0 && h2.dp.size() != 0) {
-		cerr << "Neither deck is empty.\n";
+	// check to see if game is over
+	if (h1.sum() == 0 || h2.sum() == 0) {
+		return;
 	}
-	if (h1.dp.size() == 0) {
-		h1.dp = shuffle(h1.rp);
-		h1.rp = {};
-	}
-	if (h2.dp.size() == 0) {
-		h2.dp = shuffle(h2.rp);
-		h2.rp = {};
-	}
-	// make sure there are still 52 cards;
-	int total_cards = h1.dp.size() + h1.rp.size() + h2.dp.size() + h2.rp.size();
-	if (total_cards != 52) {
-		cerr << "Missing cards!\n";
-	}
+	if (h1.dp.size() == 0) reset_deck(h1);
+	if (h2.dp.size() == 0) reset_deck(h2);
+	++tracker;
+	compare(h1, h2);
 }
 
 int main() {
-	vector<int> round_length;		// keep track of how many shuffles it takes to win
 	int j = 0;
-	while (j < 100) {							// play 100 games to gather statistics
+	vector<int> round_length;
+	while (j < 10) {							// play 100 games to gather statistics
 		Hand h1;
 		Hand h2;
-		draw_initializer(h1, h2);	// 26 cards each from a shuffled 52 card deck
-		string winner;
-		int i = 0;
-		while (winner == "") {
-			play_war(h1, h2);		// compare leading card from both decks, winner 
-									//  gets cards added to their 'r' pile
-			// if someone has absolutely no cards left, the other player wins
-			if (h1.dp.size() == 0 && h1.rp.size() == 0) {
-				winner = "Player 2";
-				round_length.push_back(i);
-			}
-			if (h2.dp.size() == 0 && h2.rp.size() == 0) {
-				winner = "Player 1";
-				round_length.push_back(i);
-			}
-			// if 400 shuffles, game is a tie
-			if (i == 400) {
-				winner = "no one";
-				round_length.push_back(400);
-			}
-			// if no winner, reset the deck that is empty
-			reset_decks(h1, h2);
-			++i;
+		draw_initializer(h1, h2);		// 26 cards each from a shuffled 52 card deck
+		compare(h1, h2);				// compare leading card from both decks, winner 
+										//  gets cards added to their 'r' pile
+		// if someone has absolutely no cards left, the other player wins
+		if (h1.sum() == 0) {
+			cout << "Player 2" << endl;
+			round_length.push_back(tracker);
+		}
+		else if (h2.sum() == 0) {
+			cout << "Player 1" << endl;
+			round_length.push_back(tracker);
+		}
+		else {
+			round_length.push_back(0);
 		}
 		// reset the draw and rubbish piles for a new game
 		h1.dp = {};
@@ -190,43 +177,8 @@ int main() {
 		h2.dp = {};
 		h2.rp = {};
 		++j;
+		tracker = 0;
 	}
 	print(round_length);
 	return 0;
 }
-// this is similar to main() above, but it prints the deck contents
-//	occasionally so the user can see the program works currectly
-/*
-int Notmain() {
-	draw_initializer(h1, h2);
-	string winner;
-	int i = 0;
-	while (winner == "") {
-		play_war(h1.dp, h2.dp);
-		if (h1.dp.size() == 0 && h1.rp.size() == 0) {
-			cout << "required rounds: " << i << endl;
-			winner = "Player 2";
-		}
-		if (h2.dp.size() == 0 && h2.rp.size() == 0) {
-			cout << "required rounds: " << i << endl;
-			winner = "Player 1";
-		}
-		if (i % 25 == 0) {
-			cout << i << " hands played\n";
-			cout << "deck 1:\n";
-			print(h1.dp);
-			print(h1.rp);
-			cout << "deck 2:\n";
-			print(h2.dp);
-			print(h2.rp);
-		}
-		if (i > 401) {
-			winner = "no one";
-		}
-		reset_decks(h1.dp, h2.dp, h1.rp, h2.rp);
-		++i;
-	}
-	cout << winner << " wins!";
-	return 0;
-}
-*/
